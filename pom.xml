@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.kriolos.opos</groupId>
+        <artifactId>kriolos-opos-web</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>kriolos-opos-webforj-quarkus</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Kriolos.POS.WebforJ-Quarkus</name>
+    <description>Modern web-based using Quarkus 3 + WebforJ 26</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <maven.compiler.release>21</maven.compiler.release>
+
+        <quarkus.platform.version>3.33.3.2</quarkus.platform.version>
+        <webforj.version>26.02</webforj.version>
+        <!-- 🚀 A SOLUÇÃO: Força o Quarkus BOM a elevar o Netty global para a versão do webforJ -->
+        <netty.version>4.2.11.Final</netty.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <name>Central Portal Snapshots</name>
+            <id>central-portal-snapshots</id>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+            </snapshots>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+            </snapshots>
+            <id>central-portal-snapshots</id>
+            <name>Central Portal Snapshots</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <dependencyManagement>
+        <dependencies>
+            
+            <!-- 🚀 1. BOM DO NETTY: Garante que todo o projeto adota a versão do webforJ -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <dependency>
+                <groupId>io.quarkus.platform</groupId>
+                <artifactId>quarkus-bom</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.webforj</groupId>
+                <artifactId>webforj-bom</artifactId>
+                <version>${webforj.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>5.10.3</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.webforj</groupId>
+            <artifactId>webforj</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.quarkiverse.webforj</groupId>
+            <artifactId>quarkus-webforj</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-arc</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-undertow</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-websockets</artifactId>
+        </dependency>
+        
+        <!-- ================================================================ -->
+        <!-- Test                                                              -->
+        <!-- ================================================================ -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.59.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <defaultGoal>quarkus:test</defaultGoal>
+        <plugins>
+            
+            <plugin>
+                <groupId>io.smallrye</groupId>
+                <artifactId>jandex-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>make-index</id>
+                        <goals>
+                            <goal>jandex</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            
+            <plugin>
+                <groupId>io.quarkus.platform</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>generate-code</goal>
+                            <goal>generate-code-tests</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.15.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                    <compilerArgs>
+                        <arg>--add-opens=java.desktop/java.awt=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <maven.home>${maven.home}</maven.home>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
+            <!-- webforJ build plugin, drives the frontend bundler (bundle, watch, test, clean)
+            and attaches the configured hotswap tool to the application run -->
+            <plugin>
+                <groupId>com.webforj</groupId>
+                <artifactId>webforj-maven-plugin</artifactId>
+                <version>${webforj.version}</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <goals>
+                            <!-- Executa apenas no 'mvn package' para empacotar os assets estáticos -->
+                            <goal>bundle</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <!--
+            <configuration>
+                <hotswap>
+                    <hotswapAgent />
+                </hotswap>
+            </configuration>
+                -->
+            </plugin>
+
+            <!-- Runs the integration tests (*IT) after the server is started -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.6</version>
+                <configuration>
+                    <trimStackTrace>false</trimStackTrace>
+                    <systemPropertyVariables>
+                        <!-- Garante que os logs do Quarkus e JBoss são inicializados na ordem correta -->
+                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
+                        <!-- Passa também o perfil de testes explicitamente para o Failsafe -->
+                        <quarkus.profile>test</quarkus.profile>
+                    </systemPropertyVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>prod</id>
+            <activation>
+            </activation>
+        </profile>
+        <profile>
+            <id>dev</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>com.webforj</groupId>
+                    <artifactId>webforj-devtools</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+</project>

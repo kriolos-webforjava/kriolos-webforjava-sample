@@ -1,0 +1,33 @@
+
+
+== Test 
+
+
+----
+mvn clean verify -Dconfig.file=webforj-dev.conf
+----
+
+== playwright
+
+.LINUX (║ Host system is missing dependencies to run browsers)
+----
+sudo apt-get update && sudo apt-get install -y libavif16 libwoff1
+----
+
+
+O webforJ 26.02 e o seu motor interno (o gestor de licenças Basis BBj 26) foram atualizados para utilizar as versões mais recentes do Java (Java 21 ou superior), além de adotar melhorias estruturais modernas, como a geração de paletas de cores baseadas no modelo cromático OKLCH no DWC (Digital Web Client). 
+Deseja saber mais sobre os requisitos de ambiente ou sobre os novos recursos de IA como o craftforJ introduzidos nesta versão?
+.RUN on CI/CD
+----
+mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install-deps"
+----
+
+
+
+== 
+
+O webforJ 26.02 e o seu motor interno (o gestor de licenças Basis BBj 26) 
+foram atualizados para utilizar as versões mais recentes do Java (Java 21 ou superior), 
+além de adotar melhorias estruturais modernas, como a geração de paletas de cores baseadas no modelo cromático OKLCH no DWC (Digital Web Client).
+
+Deseja saber mais sobre os requisitos de ambiente ou sobre os novos recursos de IA como o craftforJ introduzidos nesta versão?
