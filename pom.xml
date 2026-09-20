@@ -56,7 +56,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            
+
+            <!-- 🚀 2. PROTOBUF: webforJ 26.02 requires protobuf >= 4.34.1, override quarkus-bom 4.33.2 -->
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>4.34.1</version>
+            </dependency>
+
             <dependency>
                 <groupId>io.quarkus.platform</groupId>
                 <artifactId>quarkus-bom</artifactId>

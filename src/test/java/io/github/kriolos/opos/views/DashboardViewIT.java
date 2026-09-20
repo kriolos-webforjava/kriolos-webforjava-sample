@@ -54,7 +54,7 @@ class DashboardViewIT {
         //page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE);
 
         // 🛠️ CORREÇÃO: Aguarda apenas que o esqueleto do HTML seja processado, sem travar nas conexões persistentes
-        page.waitForLoadState(com.microsoft.playwright.options.LoadState.DOMCONTENTLOADED);
+        //page.waitForLoadState(com.microsoft.playwright.options.LoadState.DOMCONTENTLOADED);
     }
 
     @AfterEach
