@@ -102,8 +102,14 @@ public class MainLayout extends Composite<AppLayout> {
       if (securityContext.hasRole("admin")) {
         roles.add("Admin");
       }
-      if (securityContext.hasRole("gerente")) {
+      if (securityContext.hasRole("manager") || securityContext.hasRole("gerente")) {
         roles.add("Manager");
+      }
+      if (securityContext.hasRole("supervisor")) {
+        roles.add("Supervisor");
+      }
+      if (securityContext.hasRole("cashier")) {
+        roles.add("Cashier");
       }
       if (securityContext.hasRole("user")) {
         roles.add("User");

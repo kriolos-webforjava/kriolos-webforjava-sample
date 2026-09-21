@@ -7,10 +7,10 @@ import com.webforj.annotation.AppTheme;
 import com.webforj.annotation.Routify;
 import com.webforj.bundle.annotation.BundleEntry;
 import io.quarkus.runtime.annotations.RegisterForReflection;
-import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.Dependent;
 
 @AppEntry
-@ApplicationScoped
+@Dependent
 @RegisterForReflection
 @Routify(packages = "io.github.kriolos.opos.views")
 @BundleEntry("app.css")
