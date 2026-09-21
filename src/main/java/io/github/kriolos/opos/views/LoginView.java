@@ -10,7 +10,10 @@ import com.webforj.component.toast.Toast;
 import com.webforj.router.Router;
 import com.webforj.router.annotation.FrameTitle;
 import com.webforj.router.annotation.Route;
+import com.webforj.router.event.DidEnterEvent;
 import com.webforj.router.history.Location;
+import com.webforj.router.history.ParametersBag;
+import com.webforj.router.observer.DidEnterObserver;
 import com.webforj.router.security.annotation.AnonymousAccess;
 
 import io.quarkiverse.webforj.runtime.security.QuarkusRouteSecurityContext;
@@ -24,7 +27,7 @@ import jakarta.inject.Inject;
 @Route("/login")
 @FrameTitle("Login Submission")
 @AnonymousAccess
-public class LoginView extends Composite<Div> {
+public class LoginView extends Composite<Div> implements DidEnterObserver {
 
     private final Div self = getBoundComponent();
     private Login login = new Login();
@@ -40,8 +43,16 @@ public class LoginView extends Composite<Div> {
 
     public LoginView() {
         login.onSubmit(this::realizarLogin);
-        login.open();
         self.add(login);
+    }
+
+    @Override
+    public void onDidEnter(DidEnterEvent event, ParametersBag parameters) {
+        if (securityContext != null && securityContext.isAuthenticated()) {
+            exibirPainelPrincipal(null);
+        } else {
+            login.open();
+        }
     }
 
     private void realizarLogin(LoginSubmitEvent ev) {
