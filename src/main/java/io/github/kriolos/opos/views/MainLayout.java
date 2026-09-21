@@ -1,10 +1,18 @@
 package io.github.kriolos.opos.views;
 
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
 
 import io.github.kriolos.opos.components.DrawerHeader;
 import io.github.kriolos.opos.components.ThemeToggle;
 import io.github.kriolos.opos.components.UserBadge;
+import io.quarkiverse.webforj.runtime.security.QuarkusRouteSecurityContext;
+import io.quarkus.arc.Arc;
+import io.quarkus.arc.InstanceHandle;
+import io.quarkus.security.identity.SecurityIdentity;
 
 import com.webforj.component.Component;
 import com.webforj.component.Composite;
@@ -29,12 +37,90 @@ public class MainLayout extends Composite<AppLayout> {
   private AppLayout self = getBoundComponent();
   private H1 title = new H1();
   private ListenerRegistration<NavigateEvent> navigateRegistration;
+  private UserBadge userBadge;
+
+  @Inject
+  QuarkusRouteSecurityContext securityContext;
 
   public MainLayout() {
+    this(resolveSecurityContext());
+  }
+
+  @Inject
+  public MainLayout(QuarkusRouteSecurityContext securityContext) {
+    this.securityContext = securityContext;
     setHeader();
     setDrawer();
     setDrawerFooter();
     navigateRegistration = Router.getCurrent().onNavigate(this::onNavigate);
+  }
+
+  private static QuarkusRouteSecurityContext resolveSecurityContext() {
+    try {
+      if (Arc.container() != null) {
+        InstanceHandle<QuarkusRouteSecurityContext> handle =
+            Arc.container().instance(QuarkusRouteSecurityContext.class);
+        if (handle.isAvailable()) {
+          return handle.get();
+        }
+      }
+    } catch (Throwable ignored) {
+    }
+    return null;
+  }
+
+  @PostConstruct
+  public void onInit() {
+    updateUserInfo();
+  }
+
+  public void updateUserInfo() {
+    if (userBadge != null) {
+      userBadge.setUser(resolveUserName(), resolveUserRole());
+    }
+  }
+
+  private String resolveUserName() {
+    if (securityContext != null) {
+      SecurityIdentity identity = securityContext.getSecurityIdentity();
+      if (identity != null && !identity.isAnonymous() && identity.getPrincipal() != null) {
+        String name = identity.getPrincipal().getName();
+        if (name != null && !name.isBlank()) {
+          return capitalize(name);
+        }
+      }
+    }
+    return "Convidado";
+  }
+
+  private String resolveUserRole() {
+    if (securityContext != null) {
+      SecurityIdentity identity = securityContext.getSecurityIdentity();
+      if (identity != null && !identity.isAnonymous()) {
+        Set<String> roles = identity.getRoles();
+        if (roles != null && !roles.isEmpty()) {
+          return roles.stream()
+              .map(this::capitalize)
+              .collect(Collectors.joining(", "));
+        }
+        return "Utilizador";
+      }
+    }
+    return "";
+  }
+
+  private String capitalize(String str) {
+    if (str == null || str.isBlank()) return str;
+    if (str.startsWith("ROLE_")) str = str.substring(5);
+    return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
+  }
+
+  private void performLogout() {
+    if (securityContext != null) {
+      securityContext.clearSecurityIdentity();
+    }
+    Toast.show("Sessão terminada com sucesso!", 3000, Theme.SUCCESS, Toast.Placement.BOTTOM_RIGHT);
+    Router.getCurrent().navigate(LoginView.class);
   }
 
   private void setHeader() {
@@ -44,11 +130,19 @@ public class MainLayout extends Composite<AppLayout> {
     Toolbar toolbar = new Toolbar();
     toolbar.addToStart(new AppDrawerToggle(TablerIcon.create("layout-sidebar")));
     toolbar.addToTitle(title);
+
+    userBadge = new UserBadge(resolveUserName(), resolveUserRole());
+
+    IconButton logoutHeaderBtn = new IconButton(TablerIcon.create("logout"));
+    logoutHeaderBtn.setTooltipText("Terminar Sessão");
+    logoutHeaderBtn.onClick(ev -> performLogout());
+
     toolbar.addToEnd(
         buildToolbarButton("search", "Search"),
         buildToolbarButton("bell", "Notifications"),
         new ThemeToggle(),
-        new UserBadge("John Doe", "Admin"));
+        userBadge,
+        logoutHeaderBtn);
 
     self.addToHeader(toolbar);
   }
@@ -74,7 +168,10 @@ public class MainLayout extends Composite<AppLayout> {
 
   private void setDrawerFooter() {
     self.setDrawerFooterVisible(true);
-    self.addToDrawerFooter(buildToolbarButton("logout", "Logout"));
+    IconButton logoutBtn = new IconButton(TablerIcon.create("logout"));
+    logoutBtn.setTooltipText("Terminar Sessão");
+    logoutBtn.onClick(ev -> performLogout());
+    self.addToDrawerFooter(logoutBtn);
   }
 
   @Override
@@ -85,6 +182,7 @@ public class MainLayout extends Composite<AppLayout> {
   }
 
   private void onNavigate(NavigateEvent ev) {
+    updateUserInfo();
     Set<Component> components = ev.getContext().getAllComponents();
     Component view = components.stream().filter(c -> c.getClass().getSimpleName().endsWith("View")).findFirst()
         .orElse(null);
