@@ -1,7 +1,6 @@
 package io.github.kriolos.opos.views;
 
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
@@ -12,7 +11,6 @@ import io.github.kriolos.opos.components.UserBadge;
 import io.quarkiverse.webforj.runtime.security.QuarkusRouteSecurityContext;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.InstanceHandle;
-import io.quarkus.security.identity.SecurityIdentity;
 
 import com.webforj.component.Component;
 import com.webforj.component.Composite;
@@ -81,12 +79,17 @@ public class MainLayout extends Composite<AppLayout> {
   }
 
   private String resolveUserName() {
-    if (securityContext != null) {
-      SecurityIdentity identity = securityContext.getSecurityIdentity();
-      if (identity != null && !identity.isAnonymous() && identity.getPrincipal() != null) {
-        String name = identity.getPrincipal().getName();
-        if (name != null && !name.isBlank()) {
-          return capitalize(name);
+    if (securityContext != null && securityContext.isAuthenticated()) {
+      java.util.Optional<Object> principal = securityContext.getPrincipal();
+      if (principal.isPresent()) {
+        Object p = principal.get();
+        if (p instanceof java.security.Principal jsp) {
+          String name = jsp.getName();
+          if (name != null && !name.isBlank()) {
+            return capitalize(name);
+          }
+        } else {
+          return capitalize(p.toString());
         }
       }
     }
@@ -94,17 +97,21 @@ public class MainLayout extends Composite<AppLayout> {
   }
 
   private String resolveUserRole() {
-    if (securityContext != null) {
-      SecurityIdentity identity = securityContext.getSecurityIdentity();
-      if (identity != null && !identity.isAnonymous()) {
-        Set<String> roles = identity.getRoles();
-        if (roles != null && !roles.isEmpty()) {
-          return roles.stream()
-              .map(this::capitalize)
-              .collect(Collectors.joining(", "));
-        }
-        return "Utilizador";
+    if (securityContext != null && securityContext.isAuthenticated()) {
+      java.util.List<String> roles = new java.util.ArrayList<>();
+      if (securityContext.hasRole("admin")) {
+        roles.add("Admin");
       }
+      if (securityContext.hasRole("gerente")) {
+        roles.add("Gerente");
+      }
+      if (securityContext.hasRole("user")) {
+        roles.add("User");
+      }
+      if (!roles.isEmpty()) {
+        return String.join(", ", roles);
+      }
+      return "Utilizador";
     }
     return "";
   }
