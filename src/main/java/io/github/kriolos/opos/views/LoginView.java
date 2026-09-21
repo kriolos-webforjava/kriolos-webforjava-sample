@@ -42,53 +42,53 @@ public class LoginView extends Composite<Div> implements DidEnterObserver {
     QuarkusRouteSecurityManager securityManager;
 
     public LoginView() {
-        login.onSubmit(this::realizarLogin);
+        login.onSubmit(this::performLogin);
         self.add(login);
     }
 
     @Override
     public void onDidEnter(DidEnterEvent event, ParametersBag parameters) {
         if (securityContext != null && securityContext.isAuthenticated()) {
-            exibirPainelPrincipal(null);
+            navigateToMainPanel(null);
         } else {
             login.open();
         }
     }
 
-    private void realizarLogin(LoginSubmitEvent ev) {
+    private void performLogin(LoginSubmitEvent ev) {
         String username = ev.getUsername();
         String password = ev.getPassword();
 
-        // Cria a requisição padrão que o nosso IdentityProvider espera
+        // Create standard request expected by Quarkus IdentityProvider
         UsernamePasswordAuthenticationRequest authRequest = new UsernamePasswordAuthenticationRequest(
                 username, new PasswordCredential(password.toCharArray())
         );
 
-        // Executa a autenticação de forma reativa/assíncrona
+        // Perform reactive authentication
         identityProviderManager.authenticate(authRequest)
                 .subscribe().with(
                         securityIdentity -> {
-                            // 1. SUCESSO: Fecha o diálogo de login
+                            // 1. SUCCESS: Close login dialog
                             login.close();
                             login.setError(false).setEnabled(false);
 
-                            // 2. Armazena a identidade autenticada na sessão do webforJ
+                            // 2. Bind authenticated identity to webforJ session
                             securityContext.setSecurityIdentity(securityIdentity);
 
-                            Toast.show("Bem-vindo, " + securityIdentity.getPrincipal().getName() + "!");
+                            Toast.show("Welcome, " + securityIdentity.getPrincipal().getName() + "!");
 
-                            // 3. Redireciona para o painel principal
-                            exibirPainelPrincipal(securityIdentity);
+                            // 3. Redirect to destination or dashboard
+                            navigateToMainPanel(securityIdentity);
                         },
                         failure -> {
                             login.setError(true).setEnabled(true);
-                            // ERRO: Credenciais erradas
-                            Toast.show("Erro: " + failure.getMessage());
+                            // ERROR: Invalid credentials
+                            Toast.show("Error: " + failure.getMessage());
                         }
                 );
     }
 
-    private void exibirPainelPrincipal(SecurityIdentity identity) {
+    private void navigateToMainPanel(SecurityIdentity identity) {
         login.close();
         Optional<Location> preAuth = securityManager.getPreAuthenticationLocation();
         if (preAuth.isPresent()) {

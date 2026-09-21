@@ -93,7 +93,7 @@ public class MainLayout extends Composite<AppLayout> {
         }
       }
     }
-    return "Convidado";
+    return "Guest";
   }
 
   private String resolveUserRole() {
@@ -103,7 +103,7 @@ public class MainLayout extends Composite<AppLayout> {
         roles.add("Admin");
       }
       if (securityContext.hasRole("gerente")) {
-        roles.add("Gerente");
+        roles.add("Manager");
       }
       if (securityContext.hasRole("user")) {
         roles.add("User");
@@ -111,7 +111,7 @@ public class MainLayout extends Composite<AppLayout> {
       if (!roles.isEmpty()) {
         return String.join(", ", roles);
       }
-      return "Utilizador";
+      return "User";
     }
     return "";
   }
@@ -126,7 +126,7 @@ public class MainLayout extends Composite<AppLayout> {
     if (securityContext != null) {
       securityContext.clearSecurityIdentity();
     }
-    Toast.show("Sessão terminada com sucesso!", 3000, Theme.SUCCESS, Toast.Placement.BOTTOM_RIGHT);
+    Toast.show("Logged out successfully!", 3000, Theme.SUCCESS, Toast.Placement.BOTTOM_RIGHT);
     Router.getCurrent().navigate(LoginView.class);
   }
 
@@ -141,7 +141,7 @@ public class MainLayout extends Composite<AppLayout> {
     userBadge = new UserBadge(resolveUserName(), resolveUserRole());
 
     IconButton logoutHeaderBtn = new IconButton(TablerIcon.create("logout"));
-    logoutHeaderBtn.setTooltipText("Terminar Sessão");
+    logoutHeaderBtn.setTooltipText("Log out");
     logoutHeaderBtn.onClick(ev -> performLogout());
 
     toolbar.addToEnd(
@@ -176,7 +176,7 @@ public class MainLayout extends Composite<AppLayout> {
   private void setDrawerFooter() {
     self.setDrawerFooterVisible(true);
     IconButton logoutBtn = new IconButton(TablerIcon.create("logout"));
-    logoutBtn.setTooltipText("Terminar Sessão");
+    logoutBtn.setTooltipText("Log out");
     logoutBtn.onClick(ev -> performLogout());
     self.addToDrawerFooter(logoutBtn);
   }
