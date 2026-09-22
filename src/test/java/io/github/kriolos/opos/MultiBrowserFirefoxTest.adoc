@@ -1,0 +1,294 @@
+= Multi-Browser Concurrent Load & Stress Test Manual
+:doctype: article
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: highlight.js
+
+== Overview
+
+`MultiBrowserFirefoxTest` is an enterprise-grade, concurrent load and stress test harness built using **Playwright (Firefox)** and **Java 21 Virtual Threads**. It simulates realistic multi-user workloads against the `kriolos-opos-webforj-quarkus` application running on the webforJ runtime and Quarkus/Undertow server.
+
+The test validates webforJ session lifecycle handling, WebSocket connection stability, Undertow thread allocation, RMI client communication, and memory behavior under heavy concurrent traffic.
+
+=== Key Capabilities
+
+* **Duration-Based Execution**: Execute continuous stress tests for arbitrary durations (e.g., `2h`, `8h`, `30m`).
+* **Scalable Parallel Slots**: Scale concurrent browser instances (e.g., `10`, `20`, `50` parallel browsers).
+* **Dynamic User Pool**: Automatically draws from the 10 registered database user accounts. When parallel browser slots exceed 10 (e.g., 20 parallel browsers), accounts are randomly selected from the pool.
+* **Three Behavioral Personas**: Models realistic human interaction patterns (Short-Lived, Mid-Lived with multi-tab simulation, and Long-Lived sustained connections).
+* **Realistic Exit Behaviors**: Combines clean application logout with abrupt browser/tab closures to test webforJ disconnected session cleanup.
+* **Comprehensive Metrics & Reporting**: Emits formatted, real-time tabular performance reports with per-persona sub-averages and individual view navigation timings.
+* **Graceful Interruption**: A JVM shutdown hook traps `Ctrl+C` / SIGINT to safely output metrics collected up to the moment of cancellation.
+
+---
+
+== User Personas & Behavioral Profiles
+
+The harness divides parallel browser slots into three distinct user personas, accurately mirroring real-world application usage:
+
+[cols="15%,20%,20%,20%,25%",options="header"]
+|===
+| Persona | Typical Proportion | Tabs | Exit Strategy | Lifecycle Description
+
+| **Short-Lived**
+| ~40% of slots
+| 1 Tab
+| ~75% clean logout, ~25% abrupt close
+| Opens browser, logs in, performs a rapid single-pass navigation through all views with short dwell time (500–800ms), and closes the browser immediately. Creates high session turnover.
+
+| **Mid-Lived**
+| ~40% of slots
+| 1 or 2 Tabs (50/50)
+| 50% clean logout, 50% abrupt close
+| Performs multiple navigation rounds (`navRounds = 2`) with full dwell time (1500ms). Select users open a second browser tab (`context.newPage()`) within the same session context, browsing complementary views concurrently.
+
+| **Long-Lived**
+| ~20% of slots
+| 1 or 2 Tabs
+| 50% clean logout, 50% abrupt close
+| Opens browser, logs in, completes initial navigation, and then **remains open and active on the Dashboard for the entire duration of the test**. Concludes only when the overall test execution stops.
+|===
+
+=== Multi-Tab Mechanics
+Mid-lived and long-lived users configured with `openMultipleTabs = true` initialize a second tab via `context.newPage()`. Both tabs share the same `BrowserContext` and HTTP session cookies:
+
+1. **Tab 1** (Primary): Navigates the main sequence of views (`Contacts`, `Deals`, `Tasks`, `Calendar`, `Reports`).
+2. **Tab 2** (Secondary): In parallel or sequentially, opens `BASE_URL`, confirms dashboard entry, and visits complementary views (e.g., `Reports` or `Contacts`).
+3. Validates that webforJ correctly multiplexes multiple tabs/windows on the same HTTP session.
+
+=== Exit Strategies: Clean Logout vs. Abrupt Close
+* **Clean Logout**: Locates and clicks the UI logout button (`dwc-icon-button[name='logout']`), verifying proper redirection to `/login` and server-side session invalidation.
+* **Abrupt Close**: Closes the browser window/context directly without clicking logout. This specifically exercises the server's session timeout and disconnect handler (e.g. detecting dead WebSockets or Undertow session invalidation).
+
+---
+
+== User Pool & Account Allocation
+
+The application registers 10 in-memory test accounts defined in `CustomIdentityProvider`:
+
+[cols="20%,20%,60%",options="header"]
+|===
+| Username | Password | Assigned Roles
+| `admin` | `admin` | `admin`, `manager`, `user`
+| `manager` | `manager` | `manager`, `supervisor`, `user`
+| `supervisor` | `supervisor` | `supervisor`, `user`
+| `cashier` | `cashier` | `cashier`, `user`
+| `user` | `user` | `user`
+| `john` | `john` | `cashier`, `user`
+| `alice` | `alice` | `manager`, `user`
+| `bob` | `bob` | `supervisor`, `user`
+| `clara` | `clara` | `cashier`, `user`
+| `david` | `david` | `admin`, `user`
+|===
+
+=== Scaling Beyond 10 Parallel Browsers
+* **When `NUM_BROWSERS <= 10`**: Each parallel slot is assigned a unique account 1-to-1 (`admin` to slot 1, `manager` to slot 2, etc.), guaranteeing **zero duplicate logins**.
+* **When `NUM_BROWSERS > 10` (e.g. 20, 50)**: Slots randomly select accounts from `TEST_USERS` via `ThreadLocalRandom`. This models multiple users logging in under shared role credentials concurrently.
+
+---
+
+== Execution Modes
+
+=== 1. Duration-Based Mode (`-Dtest.duration`)
+Governed by a total execution time limit. Ideal for endurance, soak, and memory leak testing:
+
+* **Long-Lived Slots**: Keep their browser sessions open, active, and connected to webforJ for the entire duration (e.g., 2 hours or 8 hours).
+* **Short-Lived & Mid-Lived Slots**: Run continuously as worker loops. As soon as a short or mid session finishes, the slot briefly pauses (1s) and immediately starts a new browser session with a freshly chosen user account.
+
+Supported duration formats:
+* Hours: `2h`, `8h`
+* Minutes: `30m`, `90m`
+* Seconds: `120s`, `3600s`
+* Days: `1d`
+
+=== 2. Cycle-Based Mode (`-Dtest.cycles`)
+Governed by a fixed number of complete test cycles (default: `1`). Used for standard regression and verification:
+
+* Each cycle runs all `NUM_BROWSERS` slots concurrently.
+* Long-lived sessions remain active until all short- and mid-lived sessions within that cycle complete.
+* When all sessions finish, a cycle report is printed, and the test proceeds to the next cycle (or exits).
+* Setting `-Dtest.cycles=-1` or `-Dtest.total.loops=-1` runs an infinite cycle loop.
+
+---
+
+== Configuration Properties Reference
+
+All settings can be customized directly or overridden on the command line using `-Dproperty=value`:
+
+[cols="30%,15%,15%,40%",options="header"]
+|===
+| JVM Property | Type | Default | Description
+
+| `test.duration`
+| String
+| `""` (disabled)
+| Total execution duration (e.g., `2h`, `8h`, `45m`, `300s`). Overrides cycle mode when set.
+
+| `test.parallel.count` +
+(or `test.browser.count`)
+| Integer
+| `10`
+| Number of concurrent browser slots running in parallel (e.g., `10`, `20`, `50`).
+
+| `test.cycles` +
+(or `test.total.loops`)
+| Integer
+| `1`
+| Number of full test cycles in cycle mode (`-1` for infinite). Ignored if `test.duration` is set.
+
+| `test.base.url`
+| String
+| `http://localhost:8080`
+| Base target URL of the running webforJ application.
+
+| `test.headless`
+| Boolean
+| Auto-detected
+| `false` if graphical display (`DISPLAY`/`WAYLAND_DISPLAY`) is present; `true` in headless/CI environments.
+
+| `test.login.enabled`
+| Boolean
+| `true`
+| Whether the browser enters credentials on the login screen.
+
+| `test.username`
+| String
+| `""` (empty)
+| Forces all sessions to use a single specific username (defaults parallel count to 1).
+
+| `test.password`
+| String
+| `""` (empty)
+| Password override when `test.username` is used.
+
+| `test.view.stay.time.ms`
+| Integer
+| `1500`
+| Dwell time in milliseconds to stay on each view before navigating to the next.
+
+| `test.post.dwell.ms`
+| Integer
+| `3000`
+| Dwell time before initiating session close or logout.
+
+| `test.logout.enabled`
+| Boolean
+| `true`
+| Global kill-switch for logout (if `false`, all sessions perform abrupt close).
+|===
+
+---
+
+== How to Run the Test
+
+Ensure the webforJ Quarkus application is running before launching the test:
+```bash
+# In a dedicated terminal, launch the application
+cd kriolos-opos-webforj-quarkus
+./mvnw quarkus:dev
+```
+
+=== Quick Verification (1 Cycle, 10 Unique Users)
+Runs 1 complete cycle with 10 unique users (4 short, 4 mid, 2 long):
+```bash
+cd kriolos-opos-webforj-quarkus
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest"
+```
+
+=== 2-Hour Load Test with 20 Parallel Browsers
+Simulates 20 parallel browsers continuously cycling for 2 hours, pulling accounts randomly from the 10 database users:
+```bash
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest" \
+  -Dtest.duration=2h \
+  -Dtest.parallel.count=20
+```
+
+=== 8-Hour Overnight Endurance Test
+Simulates overnight traffic with 10 parallel browsers for 8 hours:
+```bash
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest" \
+  -Dtest.duration=8h \
+  -Dtest.parallel.count=10
+```
+
+=== Running Visually vs. Headless
+* **Visual Mode** (watch the browsers interact):
++
+```bash
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest" \
+  -Dtest.headless=false
+```
+
+* **Headless Mode** (background execution without GUI overhead):
++
+```bash
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest" \
+  -Dtest.headless=true
+```
+
+=== Single User Debug Mode
+Debugs a specific user account in isolation:
+```bash
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest" \
+  -Dtest.username=admin \
+  -Dtest.password=admin \
+  -Dtest.headless=false
+```
+
+---
+
+== Reading the Performance Report
+
+Upon completion (or upon receiving `Ctrl+C`), the harness generates a detailed tabular performance summary:
+
+```text
+================================================================================================================================================================
+=== OVERALL PERFORMANCE REPORT: ALL SESSIONS (24 total) ===
+Started: 2026-09-22 02:30:00 | Finished: 2026-09-22 04:30:00 | Total Sessions Completed: 24
+================================================================================================================================================================
+Test#  | User       | Persona     | Tabs | Start Time   | End Time     | Status | Login Time  | Dash Entry  | Views Nav (Avg / Tot)    | Dash Exit   | Logout Action   | Total Time 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+#1     | admin      | Short-Lived | 1    | 02:30:01.100 | 02:30:08.500 | OK     |     1120 ms |      780 ms |      420 ms (5 views)    |      310 ms |  240 ms (logout)|     7400 ms
+#2     | supervisor | Short-Lived | 1    | 02:30:01.400 | 02:30:07.200 | OK     |     1050 ms |      710 ms |      390 ms (5 views)    |      290 ms |    ABRUPT CLOSE |     5800 ms
+#5     | user       | Mid-Lived   | 2    | 02:30:02.100 | 02:30:22.300 | OK     |     1250 ms |      850 ms |     640 ms (10 views)    |      340 ms |  280 ms (logout)|    20200 ms
+#9     | clara      | Long-Lived  | 1    | 02:30:03.000 | 04:30:00.000 | OK     |     1180 ms |      810 ms |      450 ms (5 views)    |      320 ms |  250 ms (logout)|  7197000 ms
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+SUB-AVERAGE: Short-Lived (16 sessions) | Avg Login: 1090 ms | Avg Total: 6800 ms | Logouts: 12, Abrupt Closes: 4
+SUB-AVERAGE: Mid-Lived   (6 sessions)  | Avg Login: 1210 ms | Avg Total: 19500 ms | Logouts: 3, Abrupt Closes: 3
+SUB-AVERAGE: Long-Lived  (2 sessions)  | Avg Login: 1150 ms | Avg Total: 7196000 ms | Logouts: 1, Abrupt Closes: 1
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+OVERALL AVERAGE (24 sessions)         |              |              |        |     1125 ms |      790 ms |      490 ms (avg)        |      315 ms |          260 ms |  605000 ms
+================================================================================================================================================================
+Views detail: Contacts: 430 ms | Deals: 410 ms | Tasks: 450 ms | Calendar: 520 ms | Reports: 640 ms
+================================================================================================================================================================
+```
+
+=== Key Metrics Explained
+* **Login Time**: Milliseconds spent locating input fields, typing credentials, and submitting the login form.
+* **Dash Entry**: Milliseconds from submission until the primary dashboard side-nav (`dwc-app-nav-item`) is fully loaded and interactive.
+* **Views Nav (Avg / Tot)**: Average response time per view transition, alongside total views visited.
+* **Dash Exit**: Time required to transition back to the main Dashboard view.
+* **Logout Action**: Duration of clean logout (`${ms} ms (logout)`), or indication that the browser closed abruptly (`ABRUPT CLOSE`).
+* **Sub-Averages**: Broken down by **Short-Lived**, **Mid-Lived**, and **Long-Lived** cohorts to evaluate how duration scales across different interaction patterns.
+
+---
+
+== Troubleshooting & Common Gotchas
+
+1. **Undertow Port Collisions**:
+   * Verify no orphan Quarkus or webforJ instances are holding port `8080` via `lsof -i :8080`.
+2. **Missing Firefox Playwright Binaries**:
+   * If running in a fresh environment, install Playwright browsers:
+     `mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install firefox"`
+3. **Headless vs. GUI Display**:
+   * On headless Linux servers without X11 or Wayland, the test automatically defaults to `test.headless=true`. If running through SSH and you want visual browsers, ensure `DISPLAY` is exported or use X11 forwarding (`ssh -X`).
+4. **Sudden Spikes in Login Time**:
+   * A sharp increase in Login Time or Dash Entry time during high parallel loads (e.g. 20+ browsers) indicates Undertow I/O or worker thread saturation.
