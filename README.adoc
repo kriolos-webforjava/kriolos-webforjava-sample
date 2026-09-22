@@ -1,33 +1,126 @@
+= KriolOS POS (webforJ + Quarkus)
+:doctype: article
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: highlight.js
 
+== Overview
 
-== Test 
+`kriolos-opos-webforj-quarkus` is a modern, enterprise web application built on **Quarkus 3** and **webforJ 26.02**, powered by the **`quarkus-webforj`** extension.
 
+It brings together the reactive, lightweight architecture of Quarkus (Undertow HTTP/WebSocket engine, CDI/Arc, built-in security) with the server-driven UI component model of webforJ (Digital Web Client - DWC, OKLCH color engine, and rich UI widgets).
 
+== Prerequisites
+
+* **Java 21** or newer
+* **Maven 3.9+** (or use the included `./mvnw` Maven Wrapper)
+* **Firefox** (installed automatically via Playwright for browser testing)
+
+== Getting Started
+
+=== Development Mode (Live Coding)
+
+To run the application with Quarkus dev mode and live reload enabled:
+
+[source,bash]
 ----
-mvn clean verify -Dconfig.file=webforj-dev.conf
+./mvnw quarkus:dev
 ----
 
-== playwright
+Once launched, access the application at:
+* **Application**: http://localhost:8080
+* **Quarkus Dev UI**: http://localhost:8080/q/dev/
 
-.LINUX (║ Host system is missing dependencies to run browsers)
+=== Live Coding & Hot Reload
+With `quarkus-webforj`, Quarkus monitors your Java source files and webforJ components. Simply edit code in your IDE, save the changes, and refresh the browser—Quarkus automatically compiles and updates classes on the fly without requiring server restarts or external hotswap agents.
+
+== Security & Default Accounts
+
+The application includes an in-memory security identity provider (`CustomIdentityProvider`) with 10 pre-configured accounts (password is identical to the username):
+
+[cols="20%,20%,60%",options="header"]
+|===
+| Username | Password | Roles
+| `admin` | `admin` | `admin`, `manager`, `user`
+| `manager` | `manager` | `manager`, `supervisor`, `user`
+| `supervisor` | `supervisor` | `supervisor`, `user`
+| `cashier` | `cashier` | `cashier`, `user`
+| `user` | `user` | `user`
+| `john` | `john` | `cashier`, `user`
+| `alice` | `alice` | `manager`, `user`
+| `bob` | `bob` | `supervisor`, `user`
+| `clara` | `clara` | `cashier`, `user`
+| `david` | `david` | `admin`, `user`
+|===
+
+== Testing
+
+=== Running Unit Tests
+Run standard JUnit 5 tests:
+
+[source,bash]
 ----
+./mvnw test
+----
+
+=== Running Integration Tests
+Run end-to-end integration tests using the Maven Failsafe Plugin (`*IT.java`):
+
+[source,bash]
+----
+./mvnw verify
+----
+
+=== Multi-Browser Concurrent & Load Testing
+The project includes an advanced multi-browser concurrent test harness (`MultiBrowserFirefoxTest`) simulating realistic human user personas (Short-Lived, Mid-Lived with multi-tab, and Long-Lived sustained connections):
+
+[source,bash]
+----
+# Run 1 standard cycle with 10 unique users
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest"
+
+# Run a 2-hour stress test with 20 parallel browsers
+./mvnw test-compile exec:java \
+  -Dexec.mainClass="io.github.kriolos.opos.MultiBrowserFirefoxTest" \
+  -Dtest.duration=2h -Dtest.parallel.count=20
+----
+
+For complete details on configuring duration, personas, multi-tab behavior, and interpreting performance reports, see:
+* link:src/test/java/io/github/kriolos/opos/MultiBrowserFirefoxTest.adoc[Multi-Browser Test Manual (`MultiBrowserFirefoxTest.adoc`)]
+
+=== Playwright Linux Dependencies
+If running in a fresh Linux or CI/CD environment:
+
+[source,bash]
+----
+# Install missing system libraries if needed
 sudo apt-get update && sudo apt-get install -y libavif16 libwoff1
+
+# Install Playwright browser dependencies
+mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install-deps"
 ----
 
+== Building for Production
 
-O webforJ 26.02 e o seu motor interno (o gestor de licenças Basis BBj 26) foram atualizados para utilizar as versões mais recentes do Java (Java 21 ou superior), além de adotar melhorias estruturais modernas, como a geração de paletas de cores baseadas no modelo cromático OKLCH no DWC (Digital Web Client). 
-Deseja saber mais sobre os requisitos de ambiente ou sobre os novos recursos de IA como o craftforJ introduzidos nesta versão?
-.RUN on CI/CD
+To package the application for production deployment:
+
+[source,bash]
 ----
-mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install-deps"
+./mvnw clean package
 ----
 
+This creates the optimized Quarkus fast-jar distribution in `target/quarkus-app/`:
 
+[source,bash]
+----
+java -jar target/quarkus-app/quarkus-run.jar
+----
 
-== 
+== Learn More
 
-O webforJ 26.02 e o seu motor interno (o gestor de licenças Basis BBj 26) 
-foram atualizados para utilizar as versões mais recentes do Java (Java 21 ou superior), 
-além de adotar melhorias estruturais modernas, como a geração de paletas de cores baseadas no modelo cromático OKLCH no DWC (Digital Web Client).
-
-Deseja saber mais sobre os requisitos de ambiente ou sobre os novos recursos de IA como o craftforJ introduzidos nesta versão?
+* **webforJ Documentation**: https://docs.webforj.com
+* **Quarkus Guides**: https://quarkus.io/guides/
+* **Quarkus webforJ Extension**: https://github.com/kriolos-webforjava/quarkus-webforj
